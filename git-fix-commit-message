@@ -1,0 +1,192 @@
+#!/bin/bash -eu
+
+#
+# Last version can be found here: https://github.com/rolfbjarne/git-fix-commit-message
+#
+
+#
+# Install by copying this file to ~/bin/git-fix-commit-message
+#
+# Then use it by first committing a bump, and then executing "git fix-commit-message".
+#
+# This will search the last commit for commits that bump submodules or
+# README-style dependencies, and then edit the last commit's message to add:
+#
+#    * A list of commits in the bump, in a format that github will render as links.
+#    * A url to a diff for the entire bump.
+#
+# The script will detect previously added text, so it's safe to run multiple
+# times, it won't re-add what it's already added.
+#
+
+# I like colors.
+RED=$(tput setaf 9)
+BLUE=$(tput setaf 6)
+CLEAR=$(tput sgr0)
+
+GIT_REMOTE_COLOR=$RED
+
+HASH=HEAD
+
+SKIP_COMMIT_LIST=
+SKIP_NEXT=
+for i in "$@"; do
+	if test -n "$SKIP_NEXT"; then
+		SKIP_NEXT=
+		continue
+	fi
+	case $i in
+		--help | -\? | -h)
+			echo "$(basename "$0"): [--skip-commit-list] [-v|--verbose] [--hash=HASH]"
+			echo "    This tool will search for submodule or README dependencies in <HASH> (and add:"
+			echo "        A list of commits in the bump, in a format that GitHub will render as links."
+			echo "        A URL to a diff for the entire bump."
+			echo "    The tool will detect previously added text, so it's safe to run multiple times, it won't re-add what it's already added."
+			echo "            "
+			echo "    Options:"
+			echo "        -h --help:           Show this help."
+			echo "        --hash=<HASH>        The commit to search for dependencies. Default: HEAD"
+			echo "        --skip-commit-list:  Don't add the commit list (only the URL to a diff)."
+			echo "        -v --verbose:        Enable verbose output."
+			exit 0
+			;;
+		--skip-commit-list)
+			SKIP_COMMIT_LIST=1
+			;;
+		--hash)
+			HASH="$2"
+			SKIP_NEXT=1
+			;;
+		--hash=*)
+			HASH="${i#*=}"
+			;;
+		-v | --verbose)
+			set -x
+			;;
+		*)
+			echo "${RED}$(basename "$0"): Unknown option: $i. Pass --help to view the available options.${CLEAR}"
+			exit 1
+			;;
+	esac
+done
+
+ROOT=$(git rev-parse --show-toplevel)
+cd "$ROOT"
+
+FILE="$ROOT/$(git rev-parse --git-dir)/XI_GIT_COMMIT_MESSAGE_FIX"
+
+git log --format=%B -n 1 > "$FILE"
+
+function ensure_last_line_is_blank ()
+{
+	local LAST_LINE
+	LAST_LINE=$(tail -1 "$FILE")
+	if ! test -z "$LAST_LINE"; then
+		printf "\n" >> "$FILE"
+	fi
+}
+
+echo "Looking for dependency bumps without commit lists in $BLUE$HASH$CLEAR..."
+BEFORES=()
+AFTERS=()
+IS_PRIVATE=0
+while IFS= read -r line; do
+	if git diff "$HASH^..$HASH" -- "$line" | grep '^-Subproject commit ' > /dev/null 2>&1; then
+		echo "Found submodule bump in $line"
+		while IFS= read -r l; do BEFORES+=("$l"); done < <(git diff "$HASH^..$HASH" -- "$line" | grep '^-Subproject commit' | sed 's/-Subproject commit //')
+		while IFS= read -r l; do AFTERS+=("$l"); done < <(git diff "$HASH^..$HASH" -- "$line" | grep '^+Subproject commit' | sed 's/+Subproject commit //')
+		pushd . > /dev/null
+		cd "$line"
+		while IFS= read -r l; do REMOTES+=("$l"); done < <(git remote get-url origin | sed 's/.git$//' | sed 's/.*://' | sed 's_.*github.com/__')
+		popd > /dev/null
+		REPO_DIRS+=("$line")
+	elif git show -U0 "$HASH" -- "$line" | grep '^-NEEDED.*VERSION' > /dev/null 2>&1; then
+		echo "Found README-style bump in $line"
+		while IFS= read -r l; do BEFORES+=("$l"); done < <(git show -U0 "$HASH" -- "$line" | grep '^-NEEDED.*VERSION' | sed 's/.*:= //')
+		while IFS= read -r l; do AFTERS+=("$l"); done < <(git show -U0 "$HASH" -- "$line" | grep '^+NEEDED.*VERSION' | sed 's/.*:= //')
+		while IFS= read -r l; do REPOS+=("$l"); done < <(git show -U0 "$HASH" -- "$line" | grep '^-NEEDED.*VERSION' | sed 's/.*NEEDED_//' | sed 's/_VERSION.*//')
+		for repo in "${REPOS[@]}"; do
+			while IFS= read -r l; do REMOTES+=("$l"); done < <(grep "^${repo}_MODULE" "$line" | sed 's/.*:= //' | sed 's/.git$//' | sed 's/.*://' | sed 's_.*github.com/__')
+			while IFS= read -r l; do REPO_DIRS+=("$l"); done < <(grep "^${repo}_PATH" Make.config | sed 's/.*=//' | sed 's/$[(]TOP)/\./')
+		done
+		if [[ "$line" == "maccore" ]]; then
+			IS_PRIVATE=1
+		fi
+	elif git show -U0 "$HASH" -- "$line" | grep '^-SWIFT_HASH' > /dev/null 2>&1; then
+		echo "Found README-style bump in $line"
+		while IFS= read -r l; do BEFORES+=("$l"); done < <(git show -U0 "$HASH" -- "$line" | grep '^-SWIFT_HASH' | sed 's/.*=//')
+		while IFS= read -r l; do AFTERS+=("$l"); done < <(git show -U0 "$HASH" -- "$line" | grep '^+SWIFT_HASH' | sed 's/.*=//')
+		REPOS=(https://github.com/xamarin/swift)
+		for repo in "${REPOS[@]}"; do
+			REMOTES+=(xamarin/swift)
+			REPO_DIRS+=(tools/apple/swift)
+		done
+	else
+		echo "Not a bump in $line"
+		continue
+	fi
+
+	for index in "${!REPO_DIRS[@]}"; do
+		BEFORE=${BEFORES[$index]}
+		AFTER=${AFTERS[$index]}
+		REPO_DIR=${REPO_DIRS[$index]}
+		REMOTE=${REMOTES[$index]}
+		pushd . > /dev/null
+		cd "$REPO_DIR"
+		if grep "commits .* $REMOTE" "$FILE" &>/dev/null; then
+			echo "    ℹ️  The commit message already contains a commit list for $GIT_REMOTE_COLOR$REMOTE$CLEAR"
+		else
+			# Add commit list
+			if test -n "$SKIP_COMMIT_LIST"; then
+				echo "    ℹ️  No commit list will be created, since --skip-commit-list was passed."
+			else
+				rm -f "$FILE".tmp
+				git log --color=never --oneline "--pretty=* $REMOTE@%h %s" "$AFTER" ^"$BEFORE" >> "$FILE".tmp
+				if test -s "$FILE".tmp; then
+					printf "\nNew commits in %s:\n\n" "$REMOTE" >> "$FILE"
+					cat "$FILE".tmp >> "$FILE"
+				fi
+				rm -f "$FILE".tmp
+
+				git log --color=never --oneline "--pretty=* $REMOTE@%h %s" "$BEFORE" ^"$AFTER" >> "$FILE".tmp
+				if test -s "$FILE".tmp; then
+					printf "\nRemoved commits from %s:\n\n" "$REMOTE" >> "$FILE"
+					cat "$FILE".tmp >> "$FILE"
+				fi
+				rm -f "$FILE".tmp
+				echo "    ✅  Added commit list for $GIT_REMOTE_COLOR$REMOTE$CLEAR."
+			fi
+
+			# Add diff url
+			DIFF_URL="https://github.com/$REMOTE/compare/$BEFORE..$AFTER"
+			if grep "Diff: $DIFF_URL" "$FILE" &>/dev/null; then
+				echo "    ℹ️  The commit message already contains a diff link for $GIT_REMOTE_COLOR$REMOTE$CLEAR"
+			else
+				if [[ "x$IS_PRIVATE" == x0 ]]; then
+					# only check the url for public repositories, trying to check the url for private repositories will always fail from the command line (because they're private)
+					if ! curl -fI "$DIFF_URL" &>/dev/null; then
+						echo "    🚫  The diff URL is not valid. Did you forget to push any new commits in the dependency $GIT_REMOTE_COLOR$REMOTE$CLEAR? Diff URL: $DIFF_URL"
+						exit 1
+					fi
+				else
+					echo "    ℹ️  Could not verify the diff URL because it's a private URL. Please try it in a browser (⌘ + double click the link in Terminal to open it in your default browser)"
+				fi
+				printf "\nDiff: %s\n" "$DIFF_URL" >> "$FILE"
+				echo "    ✅  Added diff link for $GIT_REMOTE_COLOR$REMOTE$CLEAR: $DIFF_URL."
+			fi
+		fi
+		popd > /dev/null
+	done
+done < <(git diff-tree --no-commit-id --name-only -r "$HASH")
+ensure_last_line_is_blank
+
+if [[ x"$(git log -1 --pretty=%H "$HASH")" == x"$(git log -1 --pretty=%H HEAD)" ]]; then
+	git commit --amend -q -F "$FILE"
+	#rm -f "$FILE"
+else
+	echo "    ℹ️  The commit message of $BLUE$HASH$CLEAR can't be amended automatically because it's not the HEAD, but it has been stored in $FILE."
+fi
+
+printf "Successfully processed %s. Commit message is now:\n\n" "$BLUE$HASH$CLEAR"
+
+git log -1 "$HASH" --format=%b | sed 's/^/    /'
