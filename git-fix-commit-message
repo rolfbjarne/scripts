@@ -3,6 +3,8 @@
 #
 # Last version can be found here: https://github.com/rolfbjarne/scripts/git-fix-commit-message
 #
+# Or you can execute "./git-fix-commit-message --update" and the script will self-update.
+#
 
 #
 # Install by copying this file to ~/bin/git-fix-commit-message
