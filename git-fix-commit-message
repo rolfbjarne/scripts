@@ -1,7 +1,7 @@
 #!/bin/bash -eu
 
 #
-# Last version can be found here: https://github.com/rolfbjarne/git-fix-commit-message
+# Last version can be found here: https://github.com/rolfbjarne/scripts/git-fix-commit-message
 #
 
 #
@@ -30,6 +30,8 @@ HASH=HEAD
 
 SKIP_COMMIT_LIST=
 SKIP_NEXT=
+UPDATE=
+VERBOSE=
 for i in "$@"; do
 	if test -n "$SKIP_NEXT"; then
 		SKIP_NEXT=
@@ -47,6 +49,7 @@ for i in "$@"; do
 			echo "        -h --help:           Show this help."
 			echo "        --hash=<HASH>        The commit to search for dependencies. Default: HEAD"
 			echo "        --skip-commit-list:  Don't add the commit list (only the URL to a diff)."
+			echo "        --update             Update script with the latest version from https://github.com/rolfbjarne/scripts"
 			echo "        -v --verbose:        Enable verbose output."
 			exit 0
 			;;
@@ -60,7 +63,11 @@ for i in "$@"; do
 		--hash=*)
 			HASH="${i#*=}"
 			;;
+		--update)
+			UPDATE=1
+			;;
 		-v | --verbose)
+			VERBOSE=1
 			set -x
 			;;
 		*)
@@ -69,6 +76,30 @@ for i in "$@"; do
 			;;
 	esac
 done
+
+if test -n "$UPDATE"; then
+	SCRIPTNAME="$(basename "$0")"
+	URL="https://raw.githubusercontent.com/rolfbjarne/scripts/master/$SCRIPTNAME"
+	echo "Updating script with latest version from $BLUE$URL$CLEAR..."
+	TMPSCRIPT="/tmp/$SCRIPTNAME.update"
+	CURL_VERBOSITY=--silent
+	if test -n "$VERBOSE"; then
+		CURL_VERBOSITY=
+	fi
+	if ! curl $CURL_VERBOSITY --fail -L "$URL" > "$TMPSCRIPT"; then
+		echo "Failed to download $URL."
+		exit 1
+	elif diff "$0" "$TMPSCRIPT" >&/dev/null; then
+		rm -f "$TMPSCRIPT"
+		echo "Script is already up-to-date."
+		exit 0
+	fi
+	chmod +x "$TMPSCRIPT"
+	mv -- "$TMPSCRIPT" "$0"
+	echo "Script was updated successfully."
+	exit 0
+fi
+
 
 ROOT=$(git rev-parse --show-toplevel)
 cd "$ROOT"
