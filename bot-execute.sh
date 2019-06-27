@@ -15,12 +15,13 @@ RED=$(tput setaf 9)
 CLEAR=$(tput sgr0)
 
 ACTION=
+PRE_COMMAND=
 COMMAND=
 BOTS=
 XM_TEST=
 COPY_APP=
 COPY_FILE=
-RUN_APP=
+TIMEOUT=60
 
 function add_bots ()
 {
@@ -65,6 +66,14 @@ while [ -n "${1:-}" ]; do
 		--bots=*)
 			add_bots "${1:7}"
 			shift
+			;;
+		--pre-command=*)
+			PRE_COMMAND="${1#*=}"
+			shift
+			;;
+		--pre-command)
+			PRE_COMMAND="$2"
+			shift 2
 			;;
 		--command)
 			ACTION=execute
@@ -115,6 +124,14 @@ while [ -n "${1:-}" ]; do
 			COPY_APP="${1#*=}"
 			shift
 			;;
+		--timeout=*)
+			 TIMEOUT="${1#*=}"
+			 shift
+			 ;;
+		--timeout)
+			TIMEOUT="$2"
+			shift 2
+			;;
 		--list-bots)
 			echo "Current list of bots:"
 			echo -e "${ALL_BOTS// /\\n}" | sed 's/^/    /'
@@ -143,6 +160,7 @@ elif test -z "$ACTION"; then
 fi
 
 BOTDIR=$USER
+BOTCOUNT=$(wc -w <<< "$BOTS")
 
 function copyapp ()
 {
@@ -153,15 +171,23 @@ function copyapp ()
 	echo "Copying '$WHITE$(basename "$COPY_APP")$CLEAR' to $BLUE$BOTS$CLEAR in parallel..."
 
 	for bot in $BOTS; do
-		echo "Log file for copy on $BLUE$bot$CLEAR: /tmp/$bot-filetransfer.log"
+		LOGFILE=/tmp/$bot-filetransfer.log
+		if (( BOTCOUNT == 1 )); then
+			LOGFILE=/dev/stdout
+		fi
+		echo "Log file for copy on $BLUE$bot$CLEAR: $LOGFILE"
 		# shellcheck disable=SC2029
-		rsync -avz -e ssh "$COPY_APP" "$bot:~/$BOTDIR/" > "/tmp/$bot-filetransfer.log" 2>&1 &
+		rsync -avz -e ssh "$COPY_APP" "$bot:~/$BOTDIR/" > "$LOGFILE" 2>&1 &
 	done
+
 	wait
-	for bot in $BOTS; do
-		echo "Log file for app copy on $BLUE$bot$CLEAR:"
-		sed 's/^/    /' "/tmp/$bot-filetransfer.log"
-	done
+
+	if (( BOTCOUNT != 1 )); then
+		for bot in $BOTS; do
+			echo "Log file for app copy on $BLUE$bot$CLEAR:"
+			sed 's/^/    /' "/tmp/$bot-filetransfer.log"
+		done
+	fi
 }
 
 function copyfile ()
@@ -185,20 +211,63 @@ function copyfile ()
 
 function execute ()
 {
+	if test -n "$PRE_COMMAND"; then
+		COMMAND="$PRE_COMMAND;$COMMAND"
+	fi
+
 	echo "Executing '$WHITE$COMMAND$CLEAR' on $BLUE$BOTS$CLEAR in parallel..."
 
 	for bot in $BOTS; do
-		echo "Log file for execution on $BLUE$bot$CLEAR: /tmp/$bot.log"
-		# shellcheck disable=SC2029
-		ssh -o StrictHostKeyChecking=no "$bot" "$COMMAND" > "/tmp/$bot.log" 2>&1 &
+		LOGFILE=/tmp/$bot.log
+		if (( BOTCOUNT == 1 )); then
+			LOGFILE=/dev/stdout
+		fi
+		echo "Log file for execution on $BLUE$bot$CLEAR: $LOGFILE"
+
+
+		# Check for timeout, and kill if necessary
+		(
+			BEFORE=$(date +%s)
+			ssh -t -t -o StrictHostKeyChecking=no "$bot" "$COMMAND" &> "$LOGFILE" &
+			SSH_PID=$!
+
+			(
+				sleep 10
+				while kill -0 "$SSH_PID" &> /dev/null; do
+					NOW=$(date +%s)
+					DIFF=$((NOW - BEFORE))
+					if (( DIFF >= TIMEOUT )); then
+						echo "Execution on $BLUE$bot$CLEAR timed out after $TIMEOUT seconds."
+						echo "Execution on $bot timed out after $TIMEOUT seconds." >> "$LOGFILE"
+						kill -9 "$SSH_PID"
+						break
+					else
+						echo "$BLUE$bot$CLEAR is still executing after $((DIFF))s"
+					fi
+					sleep 10
+				done
+			)&
+
+			SSH_STATUS=0
+			wait "$SSH_PID" || SSH_STATUS=$?
+			AFTER=$(date +%s)
+			echo "Completed execution on $BLUE$bot$CLEAR in $((AFTER - BEFORE))s with exit code $SSH_STATUS."
+			echo "Completed execution on $bot in $((AFTER - BEFORE))s with exit code $SSH_STATUS." >> "$LOGFILE"
+		)&
 	done
 
 	wait
 
-	for bot in $BOTS; do
-		echo "Log file for execution on $BLUE$bot$CLEAR:"
-		sed 's/^/    /' "/tmp/$bot.log"
-	done
+	if (( BOTCOUNT != 1 )); then
+		for bot in $BOTS; do
+			echo "Log file for execution on $BLUE$bot$CLEAR:"
+			sed 's/^/    /' "/tmp/$bot.log"
+		done
+
+		for bot in $BOTS; do
+			tail -1 -q "/tmp/$bot.log"
+		done
+	fi
 }
 
 function runtest ()
@@ -209,16 +278,19 @@ function runtest ()
 			BUILD_TARGET=build-mac-modern-xammac_tests
 			COPY_APP="$(git rev-parse --show-toplevel)/tests/xammac_tests/bin/x86/Debug/xammac_tests.app"
 			APP_EXECUTABLE=xammac_tests.app/Contents/MacOS/xammac_tests
+			TIMEOUT=300
 			;;
 		apitest)
 			BUILD_TARGET=build-mac-modern-apitest
 			COPY_APP="$(git rev-parse --show-toplevel)/tests/apitest/bin/x86/Debug/apitest.app"
 			APP_EXECUTABLE=apitest.app/Contents/MacOS/apitest
+			TIMEOUT=60
 			;;
 		introspection)
 			BUILD_TARGET=build-mac-modern-introspection
 			COPY_APP="$(git rev-parse --show-toplevel)/tests/introspection/Mac/bin/x86/Debug/introspection.app"
 			APP_EXECUTABLE=introspection.app/Contents/MacOS/introspection
+			TIMEOUT=120
 			;;
 		*)
 			echo "Unknown Xamarin.Mac test: $XM_TEST"
@@ -261,8 +333,11 @@ case $ACTION in
 	runapp)
 		runapp
 		;;
+	execute)
+		execute
+		;;
 	*)
-		echo "${RED} OPS unknown action $ACTION. Implement me!"
+		echo "${RED} OPS unknown action $ACTION. Implement me!${CLEAR}"
 		exit 1
 		;;
 esac
