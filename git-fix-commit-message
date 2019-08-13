@@ -165,7 +165,7 @@ while IFS= read -r line; do
 		if [[ "$(basename "$REMOTE")" == "maccore" ]]; then
 			IS_PRIVATE=1
 		else
-			IS_PRIVATE=
+			IS_PRIVATE=0
 		fi
 
 		pushd . > /dev/null
