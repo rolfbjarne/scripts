@@ -142,9 +142,6 @@ while IFS= read -r line; do
 			while IFS= read -r l; do REMOTES+=("$l"); done < <(grep "^${repo}_MODULE" "$line" | sed 's/.*:= //' | sed 's/.git$//' | sed 's/.*://' | sed 's_.*github.com/__')
 			while IFS= read -r l; do REPO_DIRS+=("$l"); done < <(grep "^${repo}_PATH" Make.config | sed 's/.*=//' | sed 's/$[(]TOP)/\./')
 		done
-		if [[ "$line" == "maccore" ]]; then
-			IS_PRIVATE=1
-		fi
 	elif git show -U0 "$HASH" -- "$line" | grep '^-SWIFT_HASH' > /dev/null 2>&1; then
 		echo "Found README-style bump in $line"
 		while IFS= read -r l; do BEFORES+=("$l"); done < <(git show -U0 "$HASH" -- "$line" | grep '^-SWIFT_HASH' | sed 's/.*=//')
@@ -164,6 +161,13 @@ while IFS= read -r line; do
 		AFTER=${AFTERS[$index]}
 		REPO_DIR=${REPO_DIRS[$index]}
 		REMOTE=${REMOTES[$index]}
+
+		if [[ "$(basename "$REMOTE")" == "maccore" ]]; then
+			IS_PRIVATE=1
+		else
+			IS_PRIVATE=
+		fi
+
 		pushd . > /dev/null
 		cd "$REPO_DIR"
 		if grep "commits .* $REMOTE" "$FILE" &>/dev/null; then
