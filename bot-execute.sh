@@ -3,7 +3,7 @@
 INTERNAL_BOTS="   xam-macios-mavericks-1 xam-macios-yosemite-1 xam-macios-capitan-1 xam-macios-sierra-1 xam-macios-hsierra-1 xam-jenkins-macios-1 xam-jenkins-macios-2 xam-macios-mojave-1 xam-macios-mojave-2 xam-macios-mojave-3 xam-macios-mojave-4  xam-macios-mojave-5 xam-macios-mojave-6 xam-macios-catalina-1"
 INTERNAL_OS_BOTS="xam-macios-mavericks-1 xam-macios-yosemite-1 xam-macios-capitan-1 xam-macios-sierra-1 xam-macios-hsierra-1 xam-macios-mojave-1 xam-macios-catalina-1"
 INTERNAL_DEVICE_BOTS="xam-macios-devices-1 xam-macios-devices-2 xam-macios-devices-3"
-PUBLIC_BOTS="xam-mac-mini-26 xam-mac-mini-27 xam-mac-mini-28"
+PUBLIC_BOTS="xam-mac-mini-26 xam-mac-mini-27 xam-mac-mini-28 xam-mac-mini-37 xam-mac-mini-38"
 
 ALL_BOTS=$(echo -e "${PUBLIC_BOTS// /\\n}\\n${INTERNAL_BOTS// /\\n}\\n${INTERNAL_DEVICE_BOTS// /\\n}" | sort -u | grep -v "^$")
 ALL_BOTS=${ALL_BOTS//[$'\n']/ }
