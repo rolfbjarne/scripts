@@ -91,6 +91,7 @@ while [ -n "${1:-}" ]; do
 			shift
 			;;
 		--run-test)
+			ACTION=runtest
 			XM_TEST="$2"
 			shift 2
 			;;
