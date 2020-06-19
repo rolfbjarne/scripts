@@ -340,7 +340,7 @@ function runtest ()
 	copyapp
 
 	if test -z "$COMMAND"; then
-		COMMAND="export MONO_DEBUG=no-gdb-backtrace; export DISABLE_SYSTEM_PERMISSION_TESTS=1; ~/$BOTDIR/$APP_EXECUTABLE $ADDITIONAL_ARGUMENTS"
+		COMMAND="export MONO_DEBUG=no-gdb-backtrace; export DISABLE_SYSTEM_PERMISSION_TESTS=1; ~/$BOTDIR/$APP_EXECUTABLE ${ADDITIONAL_ARGUMENTS:-}"
 	fi
 	execute
 }
