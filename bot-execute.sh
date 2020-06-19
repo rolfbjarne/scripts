@@ -1,9 +1,43 @@
 #!/bin/bash -eu
 
-INTERNAL_BOTS="   xam-macios-mavericks-1 xam-macios-yosemite-1 xam-macios-capitan-1 xam-macios-sierra-1 xam-macios-hsierra-1 xam-jenkins-macios-1 xam-jenkins-macios-2 xam-macios-mojave-1 xam-macios-mojave-2 xam-macios-mojave-3 xam-macios-mojave-4  xam-macios-mojave-5 xam-macios-mojave-6 xam-macios-catalina-1"
-INTERNAL_OS_BOTS="xam-macios-mavericks-1 xam-macios-yosemite-1 xam-macios-capitan-1 xam-macios-sierra-1 xam-macios-hsierra-1 xam-macios-mojave-1 xam-macios-catalina-1"
-INTERNAL_DEVICE_BOTS="xam-macios-devices-1 xam-macios-devices-2 xam-macios-devices-3"
-PUBLIC_BOTS="xam-mac-mini-26 xam-mac-mini-27 xam-mac-mini-28 xam-mac-mini-37"
+# All the internal bots
+INTERNAL_BOTS+=" xam-jenkins-macios-1"   # ?
+INTERNAL_BOTS+=" xam-jenkins-macios-2"   # ?
+INTERNAL_BOTS="  xam-macios-mavericks-1" # 10.9
+INTERNAL_BOTS+=" xam-macios-yosemite-1"  # 10.10
+INTERNAL_BOTS+=" xam-macios-capitan-1"   # 10.11
+INTERNAL_BOTS+=" xam-macios-sierra-1"    # 10.12
+INTERNAL_BOTS+=" xam-macios-hsierra-1"   # 10.13
+INTERNAL_BOTS+=" xam-macios-hsierra-4"   # 10.13
+INTERNAL_BOTS+=" xam-macios-mojave-1"    # 10.14
+INTERNAL_BOTS+=" xam-macios-catalina-1"  # 10.14
+INTERNAL_BOTS+=" xam-macios-catalina-2"  # 10.14
+INTERNAL_BOTS+=" xam-macios-catalina-3"  # 10.14
+INTERNAL_BOTS+=" xam-macios-catalina-4"  # 10.14
+INTERNAL_BOTS+=" xam-macios-catalina-5"  # 10.14
+INTERNAL_BOTS+=" xam-macios-catalina-6"  # 10.14
+INTERNAL_BOTS+=" xam-macios-catalina-1"  # 10.14
+
+# One internal bot per OS version
+INTERNAL_OS_BOTS="  xam-macios-mavericks-1" # 10.9
+INTERNAL_OS_BOTS+=" xam-macios-yosemite-1"  # 10.10
+INTERNAL_OS_BOTS+=" xam-macios-capitan-1"   # 10.11
+INTERNAL_OS_BOTS+=" xam-macios-sierra-1"    # 10.12
+INTERNAL_OS_BOTS+=" xam-macios-hsierra-1"   # 10.13
+INTERNAL_OS_BOTS+=" xam-macios-mojave-1"    # 10.14
+INTERNAL_OS_BOTS+=" xam-macios-catalina-1"  # 10.14
+
+# Internal bots with devices
+INTERNAL_DEVICE_BOTS="  xam-macios-devices-1"
+INTERNAL_DEVICE_BOTS+=" xam-macios-devices-2"
+INTERNAL_DEVICE_BOTS+=" xam-macios-devices-3"
+
+# Public bots
+PUBLIC_BOTS="  xam-mac-mini-26"
+PUBLIC_BOTS+=" xam-mac-mini-27"
+PUBLIC_BOTS+=" xam-mac-mini-28"
+PUBLIC_BOTS+=" xam-mac-mini-37"
+PUBLIC_BOTS+=" xam-mac-mini-38"
 
 ALL_BOTS=$(echo -e "${PUBLIC_BOTS// /\\n}\\n${INTERNAL_BOTS// /\\n}\\n${INTERNAL_DEVICE_BOTS// /\\n}" | sort -u | grep -v "^$")
 ALL_BOTS=${ALL_BOTS//[$'\n']/ }
@@ -178,7 +212,7 @@ function copyapp ()
 		fi
 		echo "Log file for copy on $BLUE$bot$CLEAR: $LOGFILE"
 		# shellcheck disable=SC2029
-		rsync -avz -e ssh "$COPY_APP" "$bot:~/$BOTDIR/" > "$LOGFILE" 2>&1 &
+		rsync -avz --timeout 60 -e ssh "$COPY_APP" "$bot:~/$BOTDIR/" > "$LOGFILE" 2>&1 &
 	done
 
 	wait
@@ -306,7 +340,7 @@ function runtest ()
 	copyapp
 
 	if test -z "$COMMAND"; then
-		COMMAND="export MONO_DEBUG=no-gdb-backtrace; export DISABLE_SYSTEM_PERMISSION_TESTS=1; ~/$BOTDIR/$APP_EXECUTABLE"
+		COMMAND="export MONO_DEBUG=no-gdb-backtrace; export DISABLE_SYSTEM_PERMISSION_TESTS=1; ~/$BOTDIR/$APP_EXECUTABLE $ADDITIONAL_ARGUMENTS"
 	fi
 	execute
 }
