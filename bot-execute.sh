@@ -10,13 +10,14 @@ INTERNAL_BOTS+=" xam-macios-sierra-1"    # 10.12
 INTERNAL_BOTS+=" xam-macios-hsierra-1"   # 10.13
 INTERNAL_BOTS+=" xam-macios-hsierra-4"   # 10.13
 INTERNAL_BOTS+=" xam-macios-mojave-1"    # 10.14
-INTERNAL_BOTS+=" xam-macios-catalina-1"  # 10.14
-INTERNAL_BOTS+=" xam-macios-catalina-2"  # 10.14
-INTERNAL_BOTS+=" xam-macios-catalina-3"  # 10.14
-INTERNAL_BOTS+=" xam-macios-catalina-4"  # 10.14
-INTERNAL_BOTS+=" xam-macios-catalina-5"  # 10.14
-INTERNAL_BOTS+=" xam-macios-catalina-6"  # 10.14
-INTERNAL_BOTS+=" xam-macios-catalina-1"  # 10.14
+INTERNAL_BOTS+=" xam-macios-catalina-1"  # 10.15
+INTERNAL_BOTS+=" xam-macios-catalina-2"  # 10.15
+INTERNAL_BOTS+=" xam-macios-catalina-3"  # 10.15
+INTERNAL_BOTS+=" xam-macios-catalina-4"  # 10.15
+INTERNAL_BOTS+=" xam-macios-catalina-5"  # 10.15
+INTERNAL_BOTS+=" xam-macios-catalina-6"  # 10.15
+INTERNAL_BOTS+=" xam-macios-catalina-1"  # 10.15
+INTERNAL_BOTS+=" XAMBOT-1017"            # 10.16
 
 # One internal bot per OS version
 INTERNAL_OS_BOTS="  xam-macios-mavericks-1" # 10.9
@@ -25,7 +26,8 @@ INTERNAL_OS_BOTS+=" xam-macios-capitan-1"   # 10.11
 INTERNAL_OS_BOTS+=" xam-macios-sierra-1"    # 10.12
 INTERNAL_OS_BOTS+=" xam-macios-hsierra-1"   # 10.13
 INTERNAL_OS_BOTS+=" xam-macios-mojave-1"    # 10.14
-INTERNAL_OS_BOTS+=" xam-macios-catalina-1"  # 10.14
+INTERNAL_OS_BOTS+=" xam-macios-catalina-1"  # 10.15
+INTERNAL_OS_BOTS+=" XAMBOT-1017"            # 10.16
 
 # Internal bots with devices
 INTERNAL_DEVICE_BOTS="  xam-macios-devices-1"
@@ -171,6 +173,18 @@ while [ -n "${1:-}" ]; do
 			echo "Current list of bots:"
 			echo -e "${ALL_BOTS// /\\n}" | sed 's/^/    /'
 			exit 0
+			;;
+		--test-arguments=*)
+			ADDITIONAL_ARGUMENTS="${1#*=}"
+			shift
+			;;
+		--test-arguments)
+			ADDITIONAL_ARGUMENTS="$2"
+			shift 2
+			;;
+		--verbose | -v)
+			set -x
+			shift
 			;;
 		--help | -h | -?)
 			echo "Opening help in browser..."
