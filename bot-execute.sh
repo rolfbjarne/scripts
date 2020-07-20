@@ -17,7 +17,7 @@ INTERNAL_BOTS+=" xam-macios-catalina-4"  # 10.15
 INTERNAL_BOTS+=" xam-macios-catalina-5"  # 10.15
 INTERNAL_BOTS+=" xam-macios-catalina-6"  # 10.15
 INTERNAL_BOTS+=" xam-macios-catalina-1"  # 10.15
-INTERNAL_BOTS+=" XAMBOT-1017"            # 10.16
+#INTERNAL_BOTS+=" XAMBOT-1017"            # 10.16
 
 # One internal bot per OS version
 INTERNAL_OS_BOTS="  xam-macios-mavericks-1" # 10.9
@@ -27,7 +27,7 @@ INTERNAL_OS_BOTS+=" xam-macios-sierra-1"    # 10.12
 INTERNAL_OS_BOTS+=" xam-macios-hsierra-1"   # 10.13
 INTERNAL_OS_BOTS+=" xam-macios-mojave-1"    # 10.14
 INTERNAL_OS_BOTS+=" xam-macios-catalina-1"  # 10.15
-INTERNAL_OS_BOTS+=" XAMBOT-1017"            # 10.16
+#INTERNAL_OS_BOTS+=" XAMBOT-1017"            # 10.16
 
 # Internal bots with devices
 INTERNAL_DEVICE_BOTS="  xam-macios-devices-1"
