@@ -211,6 +211,14 @@ while IFS= read -r line; do
 				printf "\nDiff: %s\n" "$DIFF_URL" >> "$FILE"
 				echo "    ✅  Added diff link for $GIT_REMOTE_COLOR$REMOTE$CLEAR: $DIFF_URL."
 			fi
+
+			# Remove the " (#1234)" at the end of commit titles, since we have a link to the commit hash anyway.
+			sed 's| [\(]#[0-9]*[\)]$||' "$FILE" > "$FILE.tmp"
+			mv "$FILE.tmp" "$FILE"
+
+			# Replace "#1234" with "$REMOTE#1234".
+			sed "s|#\\([0-9][0-9]*\\)|$REMOTE#\\1|g" "$FILE" > "$FILE.tmp"
+			cp "$FILE.tmp" "$FILE"
 		fi
 		popd > /dev/null
 	done
