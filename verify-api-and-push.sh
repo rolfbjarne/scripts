@@ -6,20 +6,30 @@ CLEAR=$(tput sgr0)
 
 cd "$(git rev-parse --show-toplevel)"
 BRANCH="$(basename $(dirname $PWD))"
+
+TEMPORARY_FILE=
 function report ()
 {
 	EC="$?"
-	if [[ x$EC == x0 ]]; then
-		say "success for $1 in $BRANCH"
-	else
-		say "failure for $1 in $BRANCH"
+
+	if test -f "$TEMPORARY_FILE"; then
+		rm -f "$TEMPORARY_FILE"
 	fi
+
+	if [[ x$EC == x0 ]]; then
+		MESSAGE="success for $1 in $BRANCH"
+	else
+		MESSAGE="failure for $1 in $BRANCH"
+	fi
+
+	say "$MESSAGE" &> /dev/null &
 }
 
 trap "report build" EXIT
 
 PUSH=
 PR=
+NO_UI=
 LABELS=()
 while [[ $# -gt 0 ]]; do
 	case "$1" in
@@ -54,6 +64,10 @@ while [[ $# -gt 0 ]]; do
 			LABELS+=("${1#*=}")
 			shift
 			;;
+		--no-ui)
+			NO_UI=1
+			shift
+			;;
 		*)
 			echo "${RED}$(basename "$0"): Unknown option: $1. Pass --help to view the available options.${CLEAR}"
 			exit 1
@@ -72,9 +86,9 @@ if [ -n "$(git status --porcelain --ignore-submodule)" ]; then
 	exit 1
 fi
 
-if test -n "$PR"; then
+if [[ "1" == "$PR" && "1" == "$NO_UI" ]]; then
 	PREVIOUS=$(git log -1 HEAD^ --pretty=%H)
-	if ! git log --pretty=%H origin/main | grep "$PREVIOUS"; then
+	if ! git log --pretty=%H origin/main | grep "$PREVIOUS" &> /dev/null; then
 		echo "${RED}More than one commit from main!${CLEAR}"
 		git log --no-merges head ^origin/main --oneline | sed 's/^/    /'
 		exit 1
@@ -99,7 +113,13 @@ if test -n "$PR"; then
 	if test -n "$LABEL_COMMAND"; then
 		LABEL_COMMAND="-l $LABEL_COMMAND"
 	fi
-	pushpr $LABEL_COMMAND
+	MESSAGE_COMMAND=
+	if test -n "$NO_UI"; then
+		TEMPORARY_FILE=$(mktemp)
+		git log --format=%B -1 > "$TEMPORARY_FILE"
+		MESSAGE_COMMAND="-F $TEMPORARY_FILE"
+	fi
+	pushpr $LABEL_COMMAND $MESSAGE_COMMAND
 elif test -n "$PUSH"; then
 	git push
 fi
