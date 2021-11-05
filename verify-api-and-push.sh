@@ -22,6 +22,7 @@ function report ()
 		MESSAGE="failure for $1 in $BRANCH"
 	fi
 
+	tput bel
 	say "$MESSAGE" &> /dev/null &
 }
 
