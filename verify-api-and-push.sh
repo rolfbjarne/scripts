@@ -5,14 +5,14 @@ RED=$(tput setaf 9)
 CLEAR=$(tput sgr0)
 
 cd "$(git rev-parse --show-toplevel)"
-
+BRANCH="$(basename $(dirname $PWD))"
 function report ()
 {
 	EC="$?"
 	if [[ x$EC == x0 ]]; then
-		say "API success $1"
+		say "success for $1 in $BRANCH"
 	else
-		say "API failure $1"
+		say "failure for $1 in $BRANCH"
 	fi
 }
 
