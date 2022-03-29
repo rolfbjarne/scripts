@@ -19,6 +19,6 @@ if ! test -f "$TOPLEVEL/tests/test.config"; then
 	make test.config -C "$(git rev-parse --show-toplevel)/tests"
 fi
 
-DONUT=$(grep ^DOTNET6= "$TOPLEVEL/tests/test.config" | sed 's/^DOTNET6=//')
+DONUT=$(grep ^DOTNET= "$TOPLEVEL/tests/test.config" | sed 's/^DOTNET=//')
 
 $DONUT "$@"
