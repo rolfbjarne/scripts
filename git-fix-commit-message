@@ -151,6 +151,18 @@ while IFS= read -r line; do
 			REMOTES+=(xamarin/swift)
 			REPO_DIRS+=(tools/apple/swift)
 		done
+	elif git show -U0 "$HASH" -- "$line" | grep '^-MLAUNCH_NUGET_VERSION' > /dev/null 2>&1; then
+		echo "Found NuGet-style bump for mlaunch in $line"
+		while IFS= read -r l; do
+			prehash=$(cd ~/Projects/rolf/nuget-get-package-info && dotnet run -- --feed https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet-eng/nuget/v3/index.json --packageid microsoft.tools.mlaunch --version "$l" | grep "^Hash: " | sed 's/^Hash: //')
+			BEFORES+=("$prehash");
+		done < <(git show -U0 "$HASH" -- "$line" | grep '^-MLAUNCH_NUGET_VERSION' | sed 's/.*=//')
+		while IFS= read -r l; do
+			posthash=$(cd ~/Projects/rolf/nuget-get-package-info && dotnet run  -- --feed https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet-eng/nuget/v3/index.json --packageid microsoft.tools.mlaunch --version "$l" | grep "^Hash: " | sed 's/^Hash: //')
+			AFTERS+=("$posthash");
+		done < <(git show -U0 "$HASH" -- "$line" | grep '^+MLAUNCH_NUGET_VERSION' | sed 's/.*=//')
+		REMOTES+=(xamarin/maccore)
+		REPO_DIRS+=(../maccore)
 	else
 		echo "Not a bump in $line"
 		continue
