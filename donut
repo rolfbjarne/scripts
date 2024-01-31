@@ -6,6 +6,8 @@
 # Usage: same as 'dotnet'
 #
 
+source ~/bin/colors.sh
+
 TOPLEVEL=$(git rev-parse --show-superproject-working-tree)
 if test -z "$TOPLEVEL"; then
 	TOPLEVEL=$(git rev-parse --show-toplevel)
@@ -17,7 +19,8 @@ fi
 
 DONUT=$(grep ^DOTNET= "$TOPLEVEL/tests/test.config" | sed 's/^DOTNET=//')
 
-echo "Using dotnet from: $DONUT"
+echo "Using 🍩 from: ${BLUE}$DONUT${CLEAR}"
 echo ""
 
+echo "\$ ${MAGENTA}$DONUT${CLEAR} $@"
 $DONUT "$@"
