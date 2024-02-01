@@ -8,19 +8,22 @@
 
 source ~/bin/colors.sh
 
-TOPLEVEL=$(git rev-parse --show-superproject-working-tree)
+TOPLEVEL=$(git rev-parse --show-superproject-working-tree 2>/dev/null || true)
 if test -z "$TOPLEVEL"; then
-	TOPLEVEL=$(git rev-parse --show-toplevel)
+	if ! TOPLEVEL=$(git rev-parse --show-toplevel 2>/dev/null); then
+		echo "${RED}🍩 The current directory ${BLUE}$(pwd)${RED} is not a git repository. Can't find 🍩"
+		exit 1
+	fi
 fi
 
 if ! test -f "$TOPLEVEL/tests/test.config"; then
-	make test.config -C "$(git rev-parse --show-toplevel)/tests"
+	make test.config -C "$TOPLEVEL/tests"
 fi
 
 DONUT=$(grep ^DOTNET= "$TOPLEVEL/tests/test.config" | sed 's/^DOTNET=//')
 
-echo "Using 🍩 from: ${BLUE}$DONUT${CLEAR}"
+echo "🍩 Using ${BLUE}dotnet${CLEAR} from: ${BLUE}$DONUT${CLEAR}"
 echo ""
 
-echo "\$ ${MAGENTA}$DONUT${CLEAR} $@"
+echo "$ ${MAGENTA}$DONUT${CLEAR} $@"
 $DONUT "$@"
