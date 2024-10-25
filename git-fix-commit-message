@@ -163,6 +163,18 @@ while IFS= read -r line; do
 		done < <(git show -U0 "$HASH" -- "$line" | grep '^+MLAUNCH_NUGET_VERSION' | sed 's/.*=//')
 		REMOTES+=(xamarin/maccore)
 		REPO_DIRS+=(../maccore)
+	elif git show -U0 "$HASH" -- "$line" | grep '^-[[:space:]]*<MessagingVersion' > /dev/null 2>&1; then
+		echo "Found NuGet-style bump for Xamarin.Messaging in $line"
+		while IFS= read -r l; do
+			prehash=$(cd ~/Projects/rolf/nuget-get-package-info && dotnet run -- --feed https://pkgs.dev.azure.com/azure-public/vside/_packaging/xamarin-impl/nuget/v3/index.json --packageid xamarin.messaging.client --version "$l" | grep "^Hash: " | sed 's/^Hash: //')
+			BEFORES+=("$prehash");
+		done < <(git show -U0 "$HASH" -- "$line" | grep '^-[[:space:]]*<MessagingVersion' | sed -e 's/.*[[]//' -e 's/[]].*//')
+		while IFS= read -r l; do
+			posthash=$(cd ~/Projects/rolf/nuget-get-package-info && dotnet run  -- --feed https://pkgs.dev.azure.com/azure-public/vside/_packaging/xamarin-impl/nuget/v3/index.json --packageid xamarin.messaging.client --version "$l" | grep "^Hash: " | sed 's/^Hash: //')
+			AFTERS+=("$posthash");
+		done < <(git show -U0 "$HASH" -- "$line" | grep '^+[[:space:]]*<MessagingVersion' | sed -e 's/.*[[]//' -e 's/[]].*//')
+		REMOTES+=(xamarin/Xamarin.Messaging)
+		REPO_DIRS+=(~/work/xamarin/Xamarin.Messaging)
 	else
 		echo "Not a bump in $line"
 		continue
@@ -174,7 +186,7 @@ while IFS= read -r line; do
 		REPO_DIR=${REPO_DIRS[$index]}
 		REMOTE=${REMOTES[$index]}
 
-		if [[ "$(basename "$REMOTE")" == "maccore" ]]; then
+		if [[ "$(basename "$REMOTE")" == "maccore" || "$(basename "$REMOTE")" == "Xamarin.Messaging" ]]; then
 			IS_PRIVATE=1
 		else
 			IS_PRIVATE=0
@@ -190,20 +202,30 @@ while IFS= read -r line; do
 				echo "    ℹ️  No commit list will be created, since --skip-commit-list was passed."
 			else
 				rm -f "$FILE".tmp
+				rm -f "$FILE".tmp2
 				git log --color=never --oneline "--pretty=* $REMOTE@%h %s" "$AFTER" ^"$BEFORE" >> "$FILE".tmp
 				if test -s "$FILE".tmp; then
-					printf "\nNew commits in %s:\n\n" "$REMOTE" >> "$FILE"
-					cat "$FILE".tmp >> "$FILE"
+					printf "\nNew commits in %s:\n\n" "$REMOTE" >> "$FILE".tmp2
+					cat "$FILE".tmp >> "$FILE".tmp2
 				fi
 				rm -f "$FILE".tmp
 
 				git log --color=never --oneline "--pretty=* $REMOTE@%h %s" "$BEFORE" ^"$AFTER" >> "$FILE".tmp
 				if test -s "$FILE".tmp; then
-					printf "\nRemoved commits from %s:\n\n" "$REMOTE" >> "$FILE"
-					cat "$FILE".tmp >> "$FILE"
+					printf "\nRemoved commits from %s:\n\n" "$REMOTE" >> "$FILE".tmp2
+					cat "$FILE".tmp >> "$FILE".tmp2
 				fi
 				rm -f "$FILE".tmp
-				echo "    ✅  Added commit list for $GIT_REMOTE_COLOR$REMOTE$CLEAR."
+
+				if [[ $IS_PRIVATE == 1 ]]; then
+					echo "    ℹ️  No commit list added to the commit message, because this is a private repository."
+					echo "    ℹ️  However, this is the commit list for local reading: "
+					cat "$FILE".tmp2 | grep "$REMOTE@" | sed -e "s#$REMOTE@#https://github.com/$REMOTE/commits/#" -e 's/^/        /'
+				else
+					cat "$FILE".tmp2 >> "$FILE"
+					echo "    ✅  Added commit list for $GIT_REMOTE_COLOR$REMOTE$CLEAR."
+				fi
+				rm -f "$FILE".tmp2
 			fi
 
 			# Add diff url
