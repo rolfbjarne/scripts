@@ -220,7 +220,7 @@ while IFS= read -r line; do
 				if [[ $IS_PRIVATE == 1 ]]; then
 					echo "    ℹ️  No commit list added to the commit message, because this is a private repository."
 					echo "    ℹ️  However, this is the commit list for local reading: "
-					cat "$FILE".tmp2 | grep "$REMOTE@" | sed -e "s#$REMOTE@#https://github.com/$REMOTE/commits/#" -e 's/^/        /'
+					cat "$FILE".tmp2 | grep "$REMOTE@" | sed -e "s#$REMOTE@#https://github.com/$REMOTE/commit/#" -e 's/^/        /'
 				else
 					cat "$FILE".tmp2 >> "$FILE"
 					echo "    ✅  Added commit list for $GIT_REMOTE_COLOR$REMOTE$CLEAR."
