@@ -133,6 +133,15 @@ while IFS= read -r line; do
 		while IFS= read -r l; do REMOTES+=("$l"); done < <(git remote get-url origin | sed 's/.git$//' | sed 's/.*://' | sed 's_.*github.com/__')
 		popd > /dev/null
 		REPO_DIRS+=("$line")
+	elif git show -U0 "$HASH" -- "$line" | grep '^-NEEDED_ADR_VERSION' > /dev/null 2>&1; then
+		echo "Found README-style bump for adr in $line"
+		while IFS= read -r l; do BEFORES+=("$l"); done < <(git show -U0 "$HASH" -- "$line" | grep '^-NEEDED.*VERSION' | sed 's/.*:= //')
+		while IFS= read -r l; do AFTERS+=("$l"); done < <(git show -U0 "$HASH" -- "$line" | grep '^+NEEDED.*VERSION' | sed 's/.*:= //')
+		REPOS=(https://devdiv@dev.azure.com/devdiv/DevDiv/_git/macios-adr)
+		for repo in "${REPOS[@]}"; do
+			REMOTES+=(origin)
+			REPO_DIRS+=(../macios-adr)
+		done
 	elif git show -U0 "$HASH" -- "$line" | grep '^-NEEDED.*VERSION' > /dev/null 2>&1; then
 		echo "Found README-style bump in $line"
 		while IFS= read -r l; do BEFORES+=("$l"); done < <(git show -U0 "$HASH" -- "$line" | grep '^-NEEDED.*VERSION' | sed 's/.*:= //')
